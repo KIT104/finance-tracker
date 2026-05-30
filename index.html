@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Finance Tracker</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+</head>
+<body>
+  <!-- Login overlay (only shown in cloud mode when signed out) -->
+  <div id="auth-overlay" class="auth-overlay" hidden>
+    <div class="auth-box">
+      <h1>💰 Finance Tracker</h1>
+      <p class="auth-sub">Sign in to sync across your devices</p>
+      <form id="auth-form">
+        <input type="email" id="auth-email" placeholder="Email" autocomplete="email" required />
+        <input type="password" id="auth-password" placeholder="Password (min 6 chars)" autocomplete="current-password" minlength="6" required />
+        <div class="auth-actions">
+          <button type="submit" class="btn-primary" id="signin-btn">Sign In</button>
+          <button type="button" class="btn-ghost" id="signup-btn">Create Account</button>
+        </div>
+        <p id="auth-error" class="auth-error"></p>
+      </form>
+    </div>
+  </div>
+
+  <header class="app-header">
+    <h1>💰 Finance Tracker</h1>
+    <p class="subtitle">Track income &amp; expenses, visualize trends and breakdown</p>
+    <div id="account-bar" class="account-bar" hidden>
+      <span id="account-status"></span>
+      <button id="signout-btn" class="btn-ghost small" hidden>Sign Out</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- Entry form -->
+    <section class="card form-card">
+      <h2>Add Record</h2>
+      <form id="entry-form">
+        <div class="field type-field">
+          <label>Type</label>
+          <div class="toggle" id="type-toggle">
+            <button type="button" class="toggle-btn active" data-type="expense">Expense</button>
+            <button type="button" class="toggle-btn" data-type="income">Income</button>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="date">Date</label>
+          <input type="date" id="date" required />
+        </div>
+
+        <div class="field">
+          <label for="category">Category</label>
+          <select id="category" required></select>
+        </div>
+
+        <div class="field">
+          <label for="amount">Amount</label>
+          <input type="number" id="amount" min="0" step="1" placeholder="0" required />
+        </div>
+
+        <div class="field field-wide">
+          <label for="memo">Memo</label>
+          <input type="text" id="memo" placeholder="Optional" />
+        </div>
+
+        <button type="submit" class="btn-primary">Add Record</button>
+      </form>
+    </section>
+
+    <!-- Controls -->
+    <section class="controls">
+      <div class="month-filter">
+        <label for="month-select">Period</label>
+        <select id="month-select"></select>
+      </div>
+      <div class="io-buttons">
+        <button id="refresh-btn" class="btn-ghost" hidden>↻ Refresh</button>
+        <button id="export-btn" class="btn-ghost">⬇ Export CSV</button>
+        <button id="import-btn" class="btn-ghost">⬆ Import CSV</button>
+        <input type="file" id="import-file" accept=".csv" hidden />
+      </div>
+    </section>
+
+    <!-- Summary -->
+    <section class="summary-row">
+      <div class="card stat">
+        <span class="stat-label">Income</span>
+        <span class="stat-value income" id="stat-income">$0</span>
+      </div>
+      <div class="card stat">
+        <span class="stat-label">Expense</span>
+        <span class="stat-value expense" id="stat-expense">$0</span>
+      </div>
+      <div class="card stat">
+        <span class="stat-label">Balance</span>
+        <span class="stat-value" id="stat-balance">$0</span>
+      </div>
+      <div class="card stat">
+        <span class="stat-label">Records</span>
+        <span class="stat-value" id="stat-count">0</span>
+      </div>
+    </section>
+
+    <!-- Charts -->
+    <section class="card chart-card">
+      <div class="chart-header">
+        <h2>Expense Breakdown by Date</h2>
+        <p class="hint">Stacked bars show each day's spending by category — the proportion is visible at a glance.</p>
+      </div>
+      <div class="chart-box">
+        <canvas id="bar-chart"></canvas>
+      </div>
+    </section>
+
+    <section class="card chart-card">
+      <div class="chart-header">
+        <h2>Income vs Expense Trend</h2>
+        <p class="hint">Daily totals over time for income, expense, and net balance.</p>
+      </div>
+      <div class="chart-box">
+        <canvas id="line-chart"></canvas>
+      </div>
+    </section>
+
+    <!-- Records table -->
+    <section class="card">
+      <div class="list-header">
+        <h2>Records</h2>
+        <button id="clear-all" class="btn-ghost danger">Clear All</button>
+      </div>
+      <div class="table-wrap">
+        <table id="entry-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Type</th>
+              <th>Category</th>
+              <th class="num">Amount</th>
+              <th>Memo</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="entry-tbody"></tbody>
+        </table>
+        <p id="empty-state" class="empty">No records yet. Add one using the form above.</p>
+      </div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
