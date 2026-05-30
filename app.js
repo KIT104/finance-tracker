@@ -69,12 +69,12 @@ async function fetchEntries() {
 }
 
 async function addEntry(e) {
-  requireUser();
-  if (CLOUD && user) {
+  const u = await ensureUser();
+  if (CLOUD) {
     const { data, error } = await sb
       .from("transactions")
       .insert({
-        user_id: user.id,
+        user_id: u.id,
         type: e.type,
         date: e.date,
         category: e.category,
