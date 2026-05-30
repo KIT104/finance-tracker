@@ -36,6 +36,15 @@ function rowToEntry(r) {
   };
 }
 
+// In cloud mode every write needs an authenticated user. If we somehow lost the
+// session, fail loudly instead of silently writing to local storage (which would
+// never sync and look like "add doesn't work").
+function requireUser() {
+  if (CLOUD && !user) {
+    throw new Error("You are signed out. Please sign in again, then retry.");
+  }
+}
+
 async function fetchEntries() {
   if (CLOUD && user) {
     const { data, error } = await sb
@@ -51,6 +60,7 @@ async function fetchEntries() {
 }
 
 async function addEntry(e) {
+  requireUser();
   if (CLOUD && user) {
     const { data, error } = await sb
       .from("transactions")
@@ -73,6 +83,7 @@ async function addEntry(e) {
 }
 
 async function addMany(list) {
+  requireUser();
   if (CLOUD && user) {
     const rows = list.map((e) => ({
       user_id: user.id,
@@ -191,7 +202,15 @@ typeToggle.addEventListener("click", (e) => {
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
   const amount = Number(amountInput.value);
-  if (!dateInput.value || !(amount >= 0)) return;
+  if (!dateInput.value) {
+    alert("Please choose a date.");
+    return;
+  }
+  if (!(amount >= 0) || amountInput.value === "") {
+    alert("Please enter a valid amount.");
+    amountInput.focus();
+    return;
+  }
 
   const submitBtn = form.querySelector('button[type="submit"]');
   submitBtn.disabled = true;
@@ -209,7 +228,7 @@ form.addEventListener("submit", async (e) => {
     refreshMonthOptions();
     render();
   } catch (err) {
-    alert("Failed to save: " + err.message);
+    alert("Failed to save: " + (err?.message || err));
   } finally {
     submitBtn.disabled = false;
   }
@@ -224,7 +243,7 @@ tbody.addEventListener("click", async (e) => {
     refreshMonthOptions();
     render();
   } catch (err) {
-    alert("Failed to delete: " + err.message);
+    alert("Failed to delete: " + (err?.message || err));
   }
 });
 
@@ -236,7 +255,7 @@ document.getElementById("clear-all").addEventListener("click", async () => {
     refreshMonthOptions();
     render();
   } catch (err) {
-    alert("Failed to clear: " + err.message);
+    alert("Failed to clear: " + (err?.message || err));
   }
 });
 
@@ -249,23 +268,28 @@ refreshBtn.addEventListener("click", async () => {
     refreshMonthOptions();
     render();
   } catch (err) {
-    alert("Failed to refresh: " + err.message);
+    alert("Failed to refresh: " + (err?.message || err));
   } finally {
     refreshBtn.disabled = false;
   }
 });
 
-// Re-pull when returning to the tab (keeps devices roughly in sync)
+// Re-pull when returning to the tab (keeps devices roughly in sync).
+// Debounced so mobile's frequent focus/blur doesn't spam the network.
 if (CLOUD) {
-  window.addEventListener("focus", async () => {
+  let focusTimer = null;
+  window.addEventListener("focus", () => {
     if (!user) return;
-    try {
-      await fetchEntries();
-      refreshMonthOptions();
-      render();
-    } catch {
-      /* ignore transient refresh errors */
-    }
+    clearTimeout(focusTimer);
+    focusTimer = setTimeout(async () => {
+      try {
+        await fetchEntries();
+        refreshMonthOptions();
+        render();
+      } catch {
+        /* ignore transient refresh errors */
+      }
+    }, 600);
   });
 }
 
@@ -521,7 +545,7 @@ importFile.addEventListener("change", (e) => {
       render();
       alert(`Imported ${imported.length} records.`);
     } catch (err) {
-      alert("Failed to import CSV: " + err.message);
+      alert("Failed to import CSV: " + (err?.message || err));
     } finally {
       importFile.value = "";
     }
@@ -641,23 +665,19 @@ function setAccountUI() {
 }
 
 if (CLOUD) {
-  authForm.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    await doAuth("signin");
-  });
-  document
-    .getElementById("signup-btn")
-    .addEventListener("click", () => doAuth("signup"));
-
   async function doAuth(kind) {
+    authError.style.color = "var(--danger)";
     authError.textContent = "";
     const email = authEmail.value.trim();
     const password = authPassword.value;
-    const fn =
+    if (!email || password.length < 6) {
+      authError.textContent = "Enter an email and a password of 6+ characters.";
+      return;
+    }
+    const { data, error } =
       kind === "signup"
-        ? sb.auth.signUp({ email, password })
-        : sb.auth.signInWithPassword({ email, password });
-    const { data, error } = await fn;
+        ? await sb.auth.signUp({ email, password })
+        : await sb.auth.signInWithPassword({ email, password });
     if (error) {
       authError.textContent = error.message;
       return;
@@ -666,10 +686,17 @@ if (CLOUD) {
       authError.style.color = "var(--income)";
       authError.textContent =
         "Account created. Check your email to confirm, then sign in.";
-      return;
     }
-    // session established via onAuthStateChange
+    // When a session exists, onAuthStateChange handles the rest.
   }
+
+  authForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    await doAuth("signin");
+  });
+  document
+    .getElementById("signup-btn")
+    .addEventListener("click", () => doAuth("signup"));
 
   signoutBtn.addEventListener("click", async () => {
     await sb.auth.signOut();
@@ -689,7 +716,6 @@ if (CLOUD) {
     }
   });
 
-  // Initial session check
   sb.auth.getSession().then(({ data }) => {
     if (!data.session) {
       showAuth(true);
@@ -697,7 +723,6 @@ if (CLOUD) {
     }
   });
 } else {
-  // Local-only mode
   setAccountUI();
   startApp();
 }
