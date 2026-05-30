@@ -6,6 +6,22 @@ const sb = CLOUD
   : null;
 let user = null;
 
+// Resolves once the initial auth state has settled (session restored or not).
+// We wait on THIS instead of calling getSession() on the hot path, because
+// getSession() takes an auth lock that can deadlock right after page load and
+// leave "Add Record" hanging forever.
+let _authResolved = false;
+let _resolveAuthReady;
+const authReady = new Promise((res) => {
+  _resolveAuthReady = res;
+});
+function markAuthReady() {
+  if (!_authResolved) {
+    _authResolved = true;
+    _resolveAuthReady();
+  }
+}
+
 const STORAGE_KEY = "finance-entries-v2";
 
 /** @typedef {{id:string,type:"income"|"expense",date:string,category:string,amount:number,memo:string}} Entry */
@@ -36,20 +52,14 @@ function rowToEntry(r) {
   };
 }
 
-// Make sure we have a live authenticated user before a write. The module-level
-// `user` can fall out of sync (token refresh, multiple tabs, init races), so if
-// it's missing we re-read the session from storage (which also refreshes an
-// expired token) before giving up. This is what fixes "Add Record does nothing".
+// Make sure we have an authenticated user before a cloud write. The module-level
+// `user` may not be set yet if the user clicks right after page load, so we wait
+// for the initial auth to settle — but with a timeout so the UI never hangs.
 async function ensureUser() {
   if (!CLOUD) return null;
   if (user) return user;
-  const { data } = await sb.auth.getSession();
-  if (data.session) {
-    user = data.session.user;
-    setAccountUI();
-    showAuth(false);
-    return user;
-  }
+  await Promise.race([authReady, new Promise((r) => setTimeout(r, 6000))]);
+  if (user) return user;
   showAuth(true);
   throw new Error("You are signed out. Please sign in again, then retry.");
 }
@@ -215,7 +225,7 @@ form.addEventListener("submit", async (e) => {
     alert("Please choose a date.");
     return;
   }
-  if (!(amount >= 0) || amountInput.value === "") {
+  if (amountInput.value === "" || !(amount >= 0)) {
     alert("Please enter a valid amount.");
     amountInput.focus();
     return;
@@ -713,6 +723,7 @@ if (CLOUD) {
 
   sb.auth.onAuthStateChange(async (_event, session) => {
     user = session?.user || null;
+    markAuthReady();
     setAccountUI();
     if (user) {
       showAuth(false);
@@ -725,11 +736,12 @@ if (CLOUD) {
     }
   });
 
+  // Safety net: if onAuthStateChange somehow doesn't fire, still settle auth.
   sb.auth.getSession().then(({ data }) => {
-    if (!data.session) {
-      showAuth(true);
-      setAccountUI();
-    }
+    if (!user) user = data.session?.user || null;
+    markAuthReady();
+    setAccountUI();
+    if (!data.session) showAuth(true);
   });
 } else {
   setAccountUI();
