@@ -721,27 +721,25 @@ if (CLOUD) {
     await sb.auth.signOut();
   });
 
-  sb.auth.onAuthStateChange(async (_event, session) => {
+  // IMPORTANT: this callback runs while Supabase holds the auth lock. Doing
+  // `await <db call>` in here deadlocks (the DB call needs the same lock to get
+  // a token) — which is what made "Add Record" hang silently. So we keep this
+  // callback synchronous and push any data loading OUT of the lock via setTimeout.
+  sb.auth.onAuthStateChange((_event, session) => {
     user = session?.user || null;
     markAuthReady();
     setAccountUI();
     if (user) {
       showAuth(false);
-      await startApp();
+      setTimeout(() => {
+        startApp().catch((err) => console.error("load failed:", err));
+      }, 0);
     } else {
       showAuth(true);
       entries = [];
       render();
       refreshMonthOptions();
     }
-  });
-
-  // Safety net: if onAuthStateChange somehow doesn't fire, still settle auth.
-  sb.auth.getSession().then(({ data }) => {
-    if (!user) user = data.session?.user || null;
-    markAuthReady();
-    setAccountUI();
-    if (!data.session) showAuth(true);
   });
 } else {
   setAccountUI();
