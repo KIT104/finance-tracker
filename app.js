@@ -36,13 +36,22 @@ function rowToEntry(r) {
   };
 }
 
-// In cloud mode every write needs an authenticated user. If we somehow lost the
-// session, fail loudly instead of silently writing to local storage (which would
-// never sync and look like "add doesn't work").
-function requireUser() {
-  if (CLOUD && !user) {
-    throw new Error("You are signed out. Please sign in again, then retry.");
+// Make sure we have a live authenticated user before a write. The module-level
+// `user` can fall out of sync (token refresh, multiple tabs, init races), so if
+// it's missing we re-read the session from storage (which also refreshes an
+// expired token) before giving up. This is what fixes "Add Record does nothing".
+async function ensureUser() {
+  if (!CLOUD) return null;
+  if (user) return user;
+  const { data } = await sb.auth.getSession();
+  if (data.session) {
+    user = data.session.user;
+    setAccountUI();
+    showAuth(false);
+    return user;
   }
+  showAuth(true);
+  throw new Error("You are signed out. Please sign in again, then retry.");
 }
 
 async function fetchEntries() {
@@ -83,10 +92,10 @@ async function addEntry(e) {
 }
 
 async function addMany(list) {
-  requireUser();
-  if (CLOUD && user) {
+  const u = await ensureUser();
+  if (CLOUD) {
     const rows = list.map((e) => ({
-      user_id: user.id,
+      user_id: u.id,
       type: e.type,
       date: e.date,
       category: e.category,
