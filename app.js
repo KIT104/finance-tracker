@@ -179,9 +179,9 @@ const CATEGORY_COLORS = {
   Gift: "#a3e635",
 };
 
-const usd = (n) =>
-  (n < 0 ? "-$" : "$") +
-  Math.abs(n).toLocaleString("en-US", { maximumFractionDigits: 0 });
+const jpy = (n) =>
+  (n < 0 ? "-¥" : "¥") +
+  Math.abs(n).toLocaleString("ja-JP", { maximumFractionDigits: 0 });
 
 // ===== Element refs =====
 const form = document.getElementById("entry-form");
@@ -404,7 +404,7 @@ function renderCharts() {
           stacked: true,
           beginAtZero: true,
           grid: { color: GRID },
-          ticks: { color: TICK, callback: (v) => usd(v) },
+          ticks: { color: TICK, callback: (v) => jpy(v) },
         },
       },
       plugins: {
@@ -414,7 +414,7 @@ function renderCharts() {
             label: (ctx) => {
               const total = dailyExpenseTotal[ctx.dataIndex] || 1;
               const pct = ((ctx.parsed.y / total) * 100).toFixed(0);
-              return `${ctx.dataset.label}: ${usd(ctx.parsed.y)} (${pct}%)`;
+              return `${ctx.dataset.label}: ${jpy(ctx.parsed.y)} (${pct}%)`;
             },
           },
         },
@@ -448,14 +448,14 @@ function renderCharts() {
         x: { grid: { color: GRID }, ticks: { color: TICK } },
         y: {
           grid: { color: GRID },
-          ticks: { color: TICK, callback: (v) => usd(v) },
+          ticks: { color: TICK, callback: (v) => jpy(v) },
         },
       },
       plugins: {
         legend: { position: "bottom", labels: { color: TICK } },
         tooltip: {
           callbacks: {
-            label: (ctx) => `${ctx.dataset.label}: ${usd(ctx.parsed.y)}`,
+            label: (ctx) => `${ctx.dataset.label}: ${jpy(ctx.parsed.y)}`,
           },
         },
       },
@@ -473,11 +473,11 @@ function renderSummary() {
     .filter((e) => e.type === "expense")
     .reduce((s, e) => s + e.amount, 0);
 
-  document.getElementById("stat-income").textContent = usd(income);
-  document.getElementById("stat-expense").textContent = usd(expense);
+  document.getElementById("stat-income").textContent = jpy(income);
+  document.getElementById("stat-expense").textContent = jpy(expense);
   const balEl = document.getElementById("stat-balance");
   const bal = income - expense;
-  balEl.textContent = usd(bal);
+  balEl.textContent = jpy(bal);
   balEl.style.color = bal >= 0 ? "var(--income)" : "var(--expense)";
   document.getElementById("stat-count").textContent = data.length;
 }
@@ -496,7 +496,7 @@ function renderTable() {
         <td><span style="color:${
           CATEGORY_COLORS[e.category] || "#94a3b8"
         }">●</span> ${e.category}</td>
-        <td class="num ${amtClass}">${sign}${usd(e.amount)}</td>
+        <td class="num ${amtClass}">${sign}${jpy(e.amount)}</td>
         <td>${escapeHtml(e.memo)}</td>
         <td><button class="del-btn" data-id="${e.id}" title="Delete">✕</button></td>
       </tr>`;

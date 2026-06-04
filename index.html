@@ -4,10 +4,10 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Finance Tracker</title>
-  <link rel="stylesheet" href="style.css?v=7" />
+  <link rel="stylesheet" href="style.css?v=8" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="config.js?v=7"></script>
+  <script src="config.js?v=8"></script>
 </head>
 <body>
   <!-- Login overlay (only shown in cloud mode when signed out) -->
@@ -60,7 +60,7 @@
         </div>
 
         <div class="field">
-          <label for="amount">Amount</label>
+          <label for="amount">Amount (¥)</label>
           <input type="number" id="amount" min="0" step="1" placeholder="0" required />
         </div>
 
@@ -91,15 +91,15 @@
     <section class="summary-row">
       <div class="card stat">
         <span class="stat-label">Income</span>
-        <span class="stat-value income" id="stat-income">$0</span>
+        <span class="stat-value income" id="stat-income">¥0</span>
       </div>
       <div class="card stat">
         <span class="stat-label">Expense</span>
-        <span class="stat-value expense" id="stat-expense">$0</span>
+        <span class="stat-value expense" id="stat-expense">¥0</span>
       </div>
       <div class="card stat">
         <span class="stat-label">Balance</span>
-        <span class="stat-value" id="stat-balance">$0</span>
+        <span class="stat-value" id="stat-balance">¥0</span>
       </div>
       <div class="card stat">
         <span class="stat-label">Records</span>
@@ -153,6 +153,6 @@
     </section>
   </main>
 
-  <script src="app.js?v=7"></script>
+  <script src="app.js?v=8"></script>
 </body>
 </html>
